@@ -98,6 +98,7 @@ export default function TeacherView() {
     const q = query(collection(db, 'students'));
     const snapshot = await getDocs(q);
     const students = [];
+    const keywordMap = new Map(ALGORITHM_KEYWORDS.map((keyword) => [keyword.id, keyword]));
     
     // Track stats
     const guessedKeywordsCount = {}; // keyword id -> count
@@ -109,6 +110,10 @@ export default function TeacherView() {
       // tally hits safely
       if (data.hits && Array.isArray(data.hits)) {
         data.hits.forEach(hit => {
+          if (!hit.keywordId || !keywordMap.has(hit.keywordId)) {
+            return;
+          }
+
           guessedKeywordsCount[hit.keywordId] = (guessedKeywordsCount[hit.keywordId] || 0) + 1;
         });
       }
@@ -122,8 +127,12 @@ export default function TeacherView() {
     // 2. Most Guessed
     const mostGuessedIds = Object.keys(guessedKeywordsCount).sort((a, b) => guessedKeywordsCount[b] - guessedKeywordsCount[a]);
     const topGuessed = mostGuessedIds.slice(0, 3).map(id => {
-      const kw = ALGORITHM_KEYWORDS.find(k => k.id === id);
-      return { name: kw ? kw.name : 'Unknown', count: guessedKeywordsCount[id], tier: kw?.tier ?? null };
+      const keyword = keywordMap.get(id);
+      return {
+        name: keyword.name,
+        count: guessedKeywordsCount[id],
+        tier: keyword.tier,
+      };
     });
 
     // 3. Student Leaderboard

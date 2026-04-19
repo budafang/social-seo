@@ -1,8 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth, loginAnonymously } from '../firebase';
 import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
-import { findMatchedKeyword } from '../constants/gameData';
+import { ALGORITHM_KEYWORDS, findMatchedKeyword } from '../constants/gameData';
 import { UserCircle, Send, PlusCircle, CheckCircle2, Award, Clock } from 'lucide-react';
+
+const IMPORTANT_TIERS = [1, 2];
+const IMPORTANT_TIER_META = {
+  1: {
+    title: '第一梯隊',
+    subtitle: '決定生死的核心數據',
+    cardClass: 'border-red-200 bg-red-50/70',
+    chipClass: 'bg-white border border-red-200 text-red-700',
+  },
+  2: {
+    title: '第二梯隊',
+    subtitle: 'AI 與搜尋引擎看懂你的關鍵',
+    cardClass: 'border-amber-200 bg-amber-50/70',
+    chipClass: 'bg-white border border-amber-200 text-amber-700',
+  },
+};
 
 export default function StudentView() {
   const [user, setUser] = useState(null);
@@ -16,6 +32,19 @@ export default function StudentView() {
 
   // Results state
   const [myResult, setMyResult] = useState(null);
+  const importantKeywords = ALGORITHM_KEYWORDS.filter((keyword) => IMPORTANT_TIERS.includes(keyword.tier));
+  const missedImportantKeywords = myResult
+    ? IMPORTANT_TIERS.map((tier) => {
+        const hitIds = new Set((myResult.hits || []).map((hit) => hit.keywordId));
+
+        return {
+          tier,
+          keywords: importantKeywords.filter(
+            (keyword) => keyword.tier === tier && !hitIds.has(keyword.id)
+          ),
+        };
+      })
+    : [];
 
   useEffect(() => {
     // Listen to global game status
@@ -286,6 +315,40 @@ export default function StudentView() {
                     <li className="text-center text-gray-400 py-4">未作答任何內容😓</li>
                   )}
                 </ul>
+              </div>
+
+              <div className="mt-6 bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                <h4 className="font-bold text-gray-800 mb-2">你漏掉的重要關鍵字</h4>
+                <p className="text-sm text-gray-500 mb-5">以下先聚焦在 Tier 1 和 Tier 2，方便你回頭檢查哪些高優先觀念還沒想到。</p>
+
+                <div className="space-y-4">
+                  {missedImportantKeywords.map((group) => {
+                    const meta = IMPORTANT_TIER_META[group.tier];
+
+                    return (
+                      <div key={group.tier} className={`rounded-2xl border p-4 ${meta.cardClass}`}>
+                        <div className="mb-3">
+                          <div className="font-bold text-gray-800">{meta.title}</div>
+                          <div className="text-sm text-gray-600">{meta.subtitle}</div>
+                        </div>
+
+                        {group.keywords.length === 0 ? (
+                          <div className="rounded-xl bg-white/80 px-4 py-3 text-sm text-green-700">
+                            這一梯隊你都有提到了，很不錯。
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {group.keywords.map((keyword) => (
+                              <div key={keyword.id} className={`rounded-full px-3 py-2 text-sm font-medium ${meta.chipClass}`}>
+                                {keyword.name}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
