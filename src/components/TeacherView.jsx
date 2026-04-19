@@ -138,27 +138,22 @@ export default function TeacherView() {
     // 3. Student Leaderboard
     const sortedStudents = [...students].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
 
-    // 4. Tier breakdown
-    const guessedByTier = [1, 2, 3, 4].map((tier) => {
+    // 4. Tier gap breakdown
+    const missedByTier = [1, 2, 3, 4].map((tier) => {
       const keywords = ALGORITHM_KEYWORDS
-        .filter((keyword) => keyword.tier === tier && guessedKeywordsCount[keyword.id])
-        .sort((a, b) => guessedKeywordsCount[b.id] - guessedKeywordsCount[a.id])
-        .map((keyword) => ({
-          ...keyword,
-          count: guessedKeywordsCount[keyword.id],
-        }));
+        .filter((keyword) => keyword.tier === tier && !guessedKeywordsCount[keyword.id]);
 
       return {
         tier,
         total: ALGORITHM_KEYWORDS.filter((keyword) => keyword.tier === tier).length,
-        guessed: keywords,
+        missed: keywords,
       };
     });
 
     setResultsData({
       blindSpots,
       topGuessed,
-      guessedByTier,
+      missedByTier,
       leaderboard: sortedStudents,
       totalStudents: students.length
     });
@@ -257,12 +252,12 @@ export default function TeacherView() {
             )}
           </div>
 
-          {/* 梯隊命中分布 */}
+          {/* 梯隊缺漏分布 */}
           <div className="bg-white rounded-3xl p-8 shadow-xl md:col-span-2 border-t-4 border-slate-300">
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">各梯隊猜中狀況</h3>
-            <p className="text-gray-500 mb-6">方便快速看出學生目前比較掌握核心指標、SEO 結構，還是長期經營觀念。</p>
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">各梯隊漏掉的重點</h3>
+            <p className="text-gray-500 mb-6">這裡列的是全班還沒提到的關鍵字，老師可以直接拿來補充和回顧。</p>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-              {resultsData.guessedByTier.map((group) => {
+              {resultsData.missedByTier.map((group) => {
                 const meta = TIER_META[group.tier];
                 return (
                   <div key={group.tier} className={`rounded-2xl border p-5 ${meta.cardClass}`}>
@@ -272,19 +267,19 @@ export default function TeacherView() {
                         <div className="text-sm text-gray-600">{meta.subtitle}</div>
                       </div>
                       <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${meta.badgeClass}`}>
-                        {group.guessed.length}/{group.total} 被猜中
+                        {group.missed.length}/{group.total} 未提到
                       </span>
                     </div>
 
-                    {group.guessed.length === 0 ? (
-                      <div className="rounded-xl bg-white/80 px-4 py-3 text-sm text-gray-500">
-                        這一梯隊目前還沒有人答對，可以在講解時多補充。
+                    {group.missed.length === 0 ? (
+                      <div className="rounded-xl bg-white/80 px-4 py-3 text-sm text-green-700">
+                        這一梯隊的重點全都有學生提到，掌握得很完整。
                       </div>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        {group.guessed.map((keyword) => (
+                        {group.missed.map((keyword) => (
                           <div key={keyword.id} className={`rounded-full px-3 py-2 text-sm font-medium ${meta.chipClass}`}>
-                            {keyword.name} · {keyword.count} 次
+                            {keyword.name}
                           </div>
                         ))}
                       </div>
