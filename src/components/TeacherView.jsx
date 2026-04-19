@@ -4,6 +4,37 @@ import { doc, onSnapshot, setDoc, collection, query, getDocs, deleteDoc } from '
 import { ALGORITHM_KEYWORDS } from '../constants/gameData';
 import { Play, Square, Users, Trophy, AlertTriangle } from 'lucide-react';
 
+const TIER_META = {
+  1: {
+    title: '第一梯隊',
+    subtitle: '決定生死的核心數據',
+    badgeClass: 'bg-red-100 text-red-700',
+    cardClass: 'border-red-200 bg-red-50/70',
+    chipClass: 'bg-white text-red-700 border border-red-200',
+  },
+  2: {
+    title: '第二梯隊',
+    subtitle: '讓 AI 與搜尋引擎看懂你的關鍵',
+    badgeClass: 'bg-amber-100 text-amber-700',
+    cardClass: 'border-amber-200 bg-amber-50/70',
+    chipClass: 'bg-white text-amber-700 border border-amber-200',
+  },
+  3: {
+    title: '第三梯隊',
+    subtitle: '把帳號養大的長期指標',
+    badgeClass: 'bg-emerald-100 text-emerald-700',
+    cardClass: 'border-emerald-200 bg-emerald-50/70',
+    chipClass: 'bg-white text-emerald-700 border border-emerald-200',
+  },
+  4: {
+    title: '第四梯隊',
+    subtitle: '系統加分的技術細節',
+    badgeClass: 'bg-sky-100 text-sky-700',
+    cardClass: 'border-sky-200 bg-sky-50/70',
+    chipClass: 'bg-white text-sky-700 border border-sky-200',
+  },
+};
+
 export default function TeacherView() {
   const [gameStatus, setGameStatus] = useState('waiting'); // waiting, playing, results
   const [timeLeft, setTimeLeft] = useState(0);
@@ -92,15 +123,33 @@ export default function TeacherView() {
     const mostGuessedIds = Object.keys(guessedKeywordsCount).sort((a, b) => guessedKeywordsCount[b] - guessedKeywordsCount[a]);
     const topGuessed = mostGuessedIds.slice(0, 3).map(id => {
       const kw = ALGORITHM_KEYWORDS.find(k => k.id === id);
-      return { name: kw ? kw.name : 'Unknown', count: guessedKeywordsCount[id] };
+      return { name: kw ? kw.name : 'Unknown', count: guessedKeywordsCount[id], tier: kw?.tier ?? null };
     });
 
     // 3. Student Leaderboard
     const sortedStudents = [...students].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
 
+    // 4. Tier breakdown
+    const guessedByTier = [1, 2, 3, 4].map((tier) => {
+      const keywords = ALGORITHM_KEYWORDS
+        .filter((keyword) => keyword.tier === tier && guessedKeywordsCount[keyword.id])
+        .sort((a, b) => guessedKeywordsCount[b.id] - guessedKeywordsCount[a.id])
+        .map((keyword) => ({
+          ...keyword,
+          count: guessedKeywordsCount[keyword.id],
+        }));
+
+      return {
+        tier,
+        total: ALGORITHM_KEYWORDS.filter((keyword) => keyword.tier === tier).length,
+        guessed: keywords,
+      };
+    });
+
     setResultsData({
       blindSpots,
       topGuessed,
+      guessedByTier,
       leaderboard: sortedStudents,
       totalStudents: students.length
     });
@@ -186,12 +235,55 @@ export default function TeacherView() {
               <ul className="space-y-4">
                 {resultsData.topGuessed.map((item, idx) => (
                   <li key={idx} className="flex justify-between items-center px-4 py-3 bg-amber-50 rounded-xl">
-                    <span className="font-bold text-gray-700 text-lg">{idx + 1}. {item.name}</span>
+                    <span className="font-bold text-gray-700 text-lg">
+                      {idx + 1}. {item.name}
+                      {item.tier && (
+                        <span className="ml-2 text-sm font-medium text-amber-700">Tier {item.tier}</span>
+                      )}
+                    </span>
                     <span className="text-amber-600 font-bold bg-amber-100 px-3 py-1 rounded-lg">{item.count} 次</span>
                   </li>
                 ))}
               </ul>
             )}
+          </div>
+
+          {/* 梯隊命中分布 */}
+          <div className="bg-white rounded-3xl p-8 shadow-xl md:col-span-2 border-t-4 border-slate-300">
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">各梯隊猜中狀況</h3>
+            <p className="text-gray-500 mb-6">方便快速看出學生目前比較掌握核心指標、SEO 結構，還是長期經營觀念。</p>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+              {resultsData.guessedByTier.map((group) => {
+                const meta = TIER_META[group.tier];
+                return (
+                  <div key={group.tier} className={`rounded-2xl border p-5 ${meta.cardClass}`}>
+                    <div className="flex items-start justify-between gap-4 mb-4">
+                      <div>
+                        <div className="text-lg font-bold text-gray-800">{meta.title}</div>
+                        <div className="text-sm text-gray-600">{meta.subtitle}</div>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${meta.badgeClass}`}>
+                        {group.guessed.length}/{group.total} 被猜中
+                      </span>
+                    </div>
+
+                    {group.guessed.length === 0 ? (
+                      <div className="rounded-xl bg-white/80 px-4 py-3 text-sm text-gray-500">
+                        這一梯隊目前還沒有人答對，可以在講解時多補充。
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {group.guessed.map((keyword) => (
+                          <div key={keyword.id} className={`rounded-full px-3 py-2 text-sm font-medium ${meta.chipClass}`}>
+                            {keyword.name} · {keyword.count} 次
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* 學生排行榜 */}
